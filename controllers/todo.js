@@ -1,4 +1,7 @@
+import fs from 'fs';
+import path from 'path';
 import Todo from '../models/Todo.js';
+import { BASE_URL } from '../configs/env.js';
 
 export const list = async (req, res) => {
   try {
@@ -11,7 +14,9 @@ export const list = async (req, res) => {
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
 
     const query = {};
-    if (status && ['pending', 'in-progress', 'completed'].includes(status)) query.status = status;
+    if (status && ['pending', 'in-progress', 'completed'].includes(status)) {
+      query.status = status;
+    }
 
     const total = await Todo.countDocuments(query);
     const todos = await Todo.find(query)
@@ -36,21 +41,16 @@ export const list = async (req, res) => {
 export const details = async (req, res) => {
   try {
     const { id } = req.params;
-
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
 
     const foundTodo = await Todo.findById(id);
-
     if (!foundTodo) {
       return res.status(404).json({ success: false, message: 'Todo not found' });
     }
 
-    res.status(200).json({
-      success: true,
-      data: foundTodo,
-    });
+    res.status(200).json({ success: true, data: foundTodo });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -60,12 +60,28 @@ export const details = async (req, res) => {
 export const create = async (req, res) => {
   try {
     const { title, description } = req.body;
+    const file = req.file;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ success: false, message: 'Title is required' });
     }
 
-    const newTodo = await Todo.create({ title: title.trim(), description: description?.trim() });
+    const todoData = {
+      title: title.trim(),
+      description: description?.trim(),
+    };
+
+    if (file) {
+      const fileUrl = `${BASE_URL}/uploads/${file.filename}`;
+      todoData.file = {
+        url: fileUrl,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      };
+    }
+
+    const newTodo = await Todo.create(todoData);
     res.status(201).json({ success: true, data: newTodo });
   } catch (error) {
     console.error(error);
@@ -77,20 +93,33 @@ export const update = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, status } = req.body;
+    const file = req.file;
 
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-      return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
-    }
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
 
     const todo = await Todo.findById(id);
-    if (!todo) {
-      return res.status(404).json({ success: false, message: 'Todo not found' });
-    }
+    if (!todo) return res.status(404).json({ success: false, message: 'Todo not found' });
 
     if (title !== undefined) todo.title = title.trim();
     if (description !== undefined) todo.description = description.trim();
-    if (status !== undefined && ['pending', 'in-progress', 'completed'].includes(status)) {
-      todo.status = status;
+    if (status && ['pending', 'in-progress', 'completed'].includes(status)) todo.status = status;
+
+    if (file) {
+      if (todo.file?.url) {
+        const oldFilename = path.basename(todo.file.url);
+        const oldFilePath = path.join(process.cwd(), 'uploads', oldFilename);
+        fs.unlink(oldFilePath, (err) => {
+          if (err) console.warn('Failed to delete old file:', err);
+        });
+      }
+
+      const fileUrl = `${BASE_URL}/uploads/${file.filename}`;
+      todo.file = {
+        url: fileUrl,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      };
     }
 
     await todo.save();
@@ -104,7 +133,6 @@ export const update = async (req, res) => {
 export const remove = async (req, res) => {
   try {
     const { id } = req.params;
-
     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
@@ -114,8 +142,17 @@ export const remove = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Todo not found' });
     }
 
+    if (todo.file?.url) {
+      const filename = path.basename(todo.file.url);
+      const filePath = path.join(process.cwd(), 'uploads', filename);
+
+      fs.unlink(filePath, (err) => {
+        if (err) console.warn('Failed to delete file:', err);
+      });
+    }
+
     await todo.deleteOne();
-    res.status(200).json({ success: true, message: 'Todo deleted successfully' });
+    res.status(200).json({ success: true, message: 'Todo and associated file deleted successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server Error' });
