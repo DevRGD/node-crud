@@ -1,14 +1,16 @@
 import cors from 'cors';
+import path from 'path';
 import mongoose from 'mongoose';
 import express, { json } from 'express';
-import path from 'path';
 import router from './routes/routes.js';
-import { DB_URL, PORT } from './configs/env.js';
+import cookieParser from 'cookie-parser';
+import { CORS_OPTIONS, DB_URL, PORT } from './configs/env.js';
 
 const app = express();
 
-app.use(cors());
+app.use(cors(CORS_OPTIONS));
 app.use(json());
+app.use(cookieParser());
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(router);
 

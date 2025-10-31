@@ -1,0 +1,251 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+    "name": "mern-react-router7",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Create a new user."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login a user. Postman will automatically save the accessToken and refreshToken cookies from the response."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Get a new accessToken. This relies on the refreshToken cookie saved from Login."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout a user. This relies on the accessToken cookie."
+          },
+          "response": []
+        }
+      ],
+      "description": "Authentication endpoints"
+    },
+    {
+      "name": "Todos (Protected)",
+      "item": [
+        {
+          "name": "List Todos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/todo/list?page=1&limit=10&status=pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["todo", "list"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "disabled": true,
+                  "description": "Sort field (createdAt, title, status)"
+                },
+                {
+                  "key": "order",
+                  "value": "desc",
+                  "disabled": true,
+                  "description": "Sort order (asc, desc)"
+                },
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Filter by status (pending, in-progress, completed)"
+                }
+              ]
+            },
+            "description": "Get a paginated list of todos. Requires accessToken cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Todo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "My New Todo",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "This is a description for the new todo.",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/todo",
+              "host": ["{{baseUrl}}"],
+              "path": ["todo"]
+            },
+            "description": "Create a new todo. Uses multipart/form-data for file upload. Requires accessToken cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Todo Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/todo/YOUR_TODO_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["todo", "YOUR_TODO_ID"]
+            },
+            "description": "Get details for a single todo. Requires accessToken cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Todo",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "My Updated Todo Title",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "This is the updated description.",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "in-progress",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "(Optional) Add a new file to replace the old one"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/todo/YOUR_TODO_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["todo", "YOUR_TODO_ID"]
+            },
+            "description": "Update an existing todo. Uses multipart/form-data for file upload. Requires accessToken cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Todo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/todo/YOUR_TODO_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["todo", "YOUR_TODO_ID"]
+            },
+            "description": "Delete a todo and its associated file, if any. Requires accessToken cookie."
+          },
+          "response": []
+        }
+      ],
+      "description": "Todo management endpoints (Requires authentication)"
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}

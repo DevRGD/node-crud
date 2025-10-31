@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { isValidObjectId } from 'mongoose';
 import Todo from '../models/Todo.js';
 import { BASE_URL } from '../configs/env.js';
 
@@ -13,7 +14,11 @@ export const list = async (req, res) => {
     const allowedSortFields = ['createdAt', 'title', 'status'];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
 
-    const query = {};
+    // Only find todos belonging to the logged-in user
+    const query = {
+      user: req.user._id,
+    };
+
     if (status && ['pending', 'in-progress', 'completed'].includes(status)) {
       query.status = status;
     }
@@ -41,12 +46,15 @@ export const list = async (req, res) => {
 export const details = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
 
-    const foundTodo = await Todo.findById(id);
+    // Find by ID and ensure it belongs to the user
+    const foundTodo = await Todo.findOne({ _id: id, user: req.user._id });
+
     if (!foundTodo) {
+      // Return 404, not 403. The user should not know if the resource exists.
       return res.status(404).json({ success: false, message: 'Todo not found' });
     }
 
@@ -66,10 +74,7 @@ export const create = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Title is required' });
     }
 
-    const todoData = {
-      title: title.trim(),
-      description: description?.trim(),
-    };
+    const todoData = { title: title.trim(), description: description?.trim() };
 
     if (file) {
       const fileUrl = `${BASE_URL}/uploads/${file.filename}`;
@@ -95,10 +100,16 @@ export const update = async (req, res) => {
     const { title, description, status } = req.body;
     const file = req.file;
 
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
+    }
 
-    const todo = await Todo.findById(id);
-    if (!todo) return res.status(404).json({ success: false, message: 'Todo not found' });
+    // Find by ID and ensure it belongs to the user
+    const todo = await Todo.findOne({ _id: id, user: req.user._id });
+
+    if (!todo) {
+      return res.status(404).json({ success: false, message: 'Todo not found' });
+    }
 
     if (title !== undefined) todo.title = title.trim();
     if (description !== undefined) todo.description = description.trim();
@@ -133,11 +144,13 @@ export const update = async (req, res) => {
 export const remove = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
 
-    const todo = await Todo.findById(id);
+    // Find by ID and ensure it belongs to the user
+    const todo = await Todo.findOne({ _id: id, user: req.user._id });
+
     if (!todo) {
       return res.status(404).json({ success: false, message: 'Todo not found' });
     }
