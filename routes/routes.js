@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import todo from './todo.js';
 import auth from './auth.js';
-import protect from '../middleware/auth.js';
+import protect from '../middleware/protect.js';
 
 const router = Router();
 

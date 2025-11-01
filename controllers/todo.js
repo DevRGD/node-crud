@@ -14,7 +14,6 @@ export const list = async (req, res) => {
     const allowedSortFields = ['createdAt', 'title', 'status'];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
 
-    // Only find todos belonging to the logged-in user
     const query = {
       user: req.user._id,
     };
@@ -50,11 +49,9 @@ export const details = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
 
-    // Find by ID and ensure it belongs to the user
     const foundTodo = await Todo.findOne({ _id: id, user: req.user._id });
 
     if (!foundTodo) {
-      // Return 404, not 403. The user should not know if the resource exists.
       return res.status(404).json({ success: false, message: 'Todo not found' });
     }
 
@@ -104,7 +101,6 @@ export const update = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
 
-    // Find by ID and ensure it belongs to the user
     const todo = await Todo.findOne({ _id: id, user: req.user._id });
 
     if (!todo) {
@@ -148,7 +144,6 @@ export const remove = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
 
-    // Find by ID and ensure it belongs to the user
     const todo = await Todo.findOne({ _id: id, user: req.user._id });
 
     if (!todo) {
