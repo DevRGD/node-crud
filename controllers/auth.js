@@ -13,19 +13,26 @@ export const register = async (req, res) => {
     }
 
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ success: false, message: 'Email already in use' });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'Email already in use' });
+    }
 
     const user = await User.create({ name, email, password });
 
+    let permission;
     try {
-      await Permission.create({ user: user._id, role: 'user', permissions: DEFAULT_PERMISSIONS });
+      permission = await Permission.create({
+        user: user._id,
+        role: 'user',
+        permissions: DEFAULT_PERMISSIONS,
+      });
     } catch (permError) {
       await User.findByIdAndDelete(user._id);
       console.error('Failed to create permission document for new user:', permError);
-      return res.status(500).json({ success: false, message: 'Server error: Could not set user permissions.' });
+      return res.status(500).json({ success: false, message: 'Server error: Could not set user permission.' });
     }
 
-    sendTokenResponse(user, 201, res);
+    sendTokenResponse(user, permission, 201, res);
   } catch (error) {
     console.error(error);
     if (error.name === 'ValidationError') {
@@ -50,7 +57,12 @@ export const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    sendTokenResponse(user, 200, res);
+    const permission = await Permission.findOne({ user: user._id });
+    if (!permission) {
+      return res.status(500).json({ success: false, message: 'Server error: Could not find user permission.' });
+    }
+
+    sendTokenResponse(user, permission, 200, res);
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -71,7 +83,12 @@ export const refresh = async (req, res) => {
       return res.status(403).json({ success: false, message: 'User not found' });
     }
 
-    sendTokenResponse(user, 200, res);
+    const permission = await Permission.findOne({ user: user._id });
+    if (!permission) {
+      return res.status(500).json({ success: false, message: 'Server error: Could not find user permission.' });
+    }
+
+    sendTokenResponse(user, permission, 200, res);
   } catch (error) {
     console.error(error);
     return res.status(403).json({ success: false, message: 'Not authorized, refresh token failed' });

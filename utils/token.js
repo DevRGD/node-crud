@@ -19,9 +19,9 @@ export const signRefreshToken = (id) => {
   });
 };
 
-export const sendTokenResponse = (user, statusCode, res) => {
-  const accessToken = signAccessToken(user._id);
-  const refreshToken = signRefreshToken(user._id);
+export const sendTokenResponse = (userDoc, permission, statusCode, res) => {
+  const accessToken = signAccessToken(userDoc._id);
+  const refreshToken = signRefreshToken(userDoc._id);
 
   const cookieOptions = {
     httpOnly: true,
@@ -40,10 +40,13 @@ export const sendTokenResponse = (user, statusCode, res) => {
     path: '/auth',
   });
 
-  user.password = undefined;
+  const user = userDoc.toObject();
+
+  delete user.password;
+  user.permission = permission;
 
   res.status(statusCode).json({
     success: true,
-    data: user,
+    user,
   });
 };
