@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import protect from '../middleware/auth.js';
+import protect from '../middleware/protect.js';
 import { register, login, refresh, logout } from '../controllers/auth.js';
 
 const auth = Router();

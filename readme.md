@@ -1,61 +1,76 @@
-# Todo App API (Node.js)
+# Todo App API (Node.js Backend)
 
-This is a secure and scalable backend API for a Todo management application, built with Node.js, Express, and MongoDB.
+This is a secure and scalable backend API for a full-stack Todo management application, built with Node.js, Express, and MongoDB.
 
-It provides a full set of endpoints for user authentication and task management, secured by a flexible, hybrid authorization system.
+It provides a comprehensive set of endpoints for user authentication, task management, and fine-grained permission control.
 
 ## Core Features
 
 * **JWT Authentication:** Secure auth flow using `accessToken` and `refreshToken` stored in `HttpOnly` cookies.
-* **Hybrid Authorization:** A powerful permission system that merges role-based templates with per-user overrides.
-* **Full Task Management:** Complete CRUD (Create, Read, Update, Delete) functionality for todos.
+* **Dynamic Permission System:** A flexible, database-driven authorization model that checks permissions on a per-user, per-route basis.
+* **Full Task/Permission Management:** Complete CRUD endpoints for both `todos` and `permissions`.
 * **File Uploads:** Supports attaching files to todos using `multer`.
+* **Scope-Based Data:** Controllers can deliver data based on a user's scope (`own` vs. `all`), allowing admins to see all todos while users see only their own.
+
+---
 
 ## Technology
 
-* **Node.js & Express:** The core framework for building the REST API.
-* **MongoDB & Mongoose:** Used as the NoSQL database and Object Data Modeling (ODM) library.
-* **JSON Web Token (JWT):** Used for creating secure access and refresh tokens.
+* **Node.js & Express:** Core framework for the REST API.
+* **MongoDB & Mongoose:** Database and Object Data Modeling (ODM) library.
+* **JSON Web Token (JWT):** For generating secure access and refresh tokens.
 * **Bcrypt:** For hashing user passwords.
-* **Multer:** Middleware for handling `multipart/form-data`, primarily for file uploads.
+* **Multer:** Middleware for handling `multipart/form-data` (file uploads).
+* **path-to-regexp:** For matching dynamic request paths against stored permission paths.
 * **Dotenv:** For managing environment variables.
 
-## Advanced Authorization System
+---
 
-This API does not use a simple role string. It uses a hybrid system that provides role-level defaults and user-level exceptions.
+## Key Architecture: Dynamic Authorization
 
-1.  **Role Model (`models/Role.js`):** Acts as a **permission template**. A role (e.g., "user") has a list of permissions, each with a default `isEnabled` state and a `scope` (e.g., 'own' or 'all').
-2.  **User Model (`models/User.js`):** Each user is assigned a `role` (the template) and also has a `permissionOverrides` array. This array can override the role's defaults for that specific user (e.g., to disable a permission).
-3.  **`protect` Middleware (`middleware/auth.js`):** This is the core logic. On every authenticated request, it:
-    * Authenticates the user's JWT.
-    * Fetches the user's `role` template and their personal `permissionOverrides`.
-    * **Computes** the final set of permissions by merging the two lists.
-    * Checks if the user has a *final, enabled* permission for the requested route.
-    * Checks the permission's `scope` and enforces ownership (e.g., a user with 'own' scope can't edit another user's todo).
+This API uses a sophisticated, user-centric permission system.
+
+1.  **`User.js` Model:** Stores basic user info (name, email, password).
+2.  **`Permission.js` Model:** This is the core of the system. **Each user has one** `Permission` document linked to their `user._id`. This document contains:
+    * Their `role` (e.g., "superadmin", "admin", "user").
+    * A `permissions` array, which lists every route they can *potentially* access.
+    * Each permission in the array has an `isEnabled` toggle and a `scope` (`'own'` or `'all'`).
+3.  **`auth.js` Controller:** When a new user registers, this controller creates a `User` document *and* a corresponding `Permission` document for them, using the defaults from `configs/env.js` (like `DEFAULT_PERMISSIONS`).
+4.  **`protect.js` Middleware:** This is the "brain" of the API. On every protected request, it:
+    * Verifies the `accessToken` and fetches the `User`.
+    * Fetches the user's *specific* `Permission` document.
+    * **Bypasses all checks** if `Permissions.role === 'superadmin'`.
+    * Finds the *exact* permission from the user's `permissions` array that matches the incoming `req.method` and `req.path`.
+    * Blocks the request if the permission is not found or `isEnabled: false`.
+    * If allowed, it attaches the `scope` (e.g., `req.user.scope = 'all'`) to the request for the controller to use.
+5.  **`todo.js` Controllers:** The controllers use the `req.user.scope` to build their database queries. For example, the `list` controller will show all todos if `req.user.scope === 'all'`, but will filter by `user: req.user._id` if `req.user.scope === 'own'`.
 
 ## API Endpoints
 
-All `/todo` routes are protected and require a valid `accessToken`.
+All routes under `/todo` and `/permissions` are protected.
 
 ### Auth
-
-* `POST /auth/register`: Create a new user account.
-* `POST /auth/login`: Log in and receive `accessToken` and `refreshToken` cookies.
+* `POST /auth/register`: Create a new user and their default permission document.
+* `POST /auth/login`: Log in (receives `accessToken` and `refreshToken` cookies).
 * `POST /auth/logout`: Log out and clear auth cookies.
-* `POST /auth/refresh`: Receive a new `accessToken` using a valid `refreshToken`.
+* `POST /auth/refresh`: Get a new `accessToken` using a valid `refreshToken`.
 
-### Todos
-
-* `GET /todo/list`: Get a list of todos. Admins see all; users see their own.
-* `POST /todo`: Create a new todo (with optional file upload).
-* `GET /todo/:id`: Get details for a single todo.
-* `PATCH /todo/:id`: Update a todo (with optional file upload).
+### Todos (Protected)
+* `GET /todo/list`: Get a list of todos (data returned depends on scope).
+* `POST /todo`: Create a new todo.
+* `GET /todo/:id`: Get a single todo (data returned depends on scope).
+* `PATCH /todo/:id`: Update a todo.
 * `DELETE /todo/:id`: Delete a todo.
+
+### Permissions (Protected: superadmin by default)
+* `GET /permissions/list`: Get a list of all users and their permission documents.
+* `PATCH /permissions/user/:id`: Update the *entire* permission document for a single user.
+* `PATCH /permissions/role/:roleName`: Bulk update a *single* permission (e.g., enable "DELETE") for all users matching a role.
 
 ## Getting Started
 
 1.  Clone the repository.
 2.  Run `npm install` (or `yarn install`).
-3.  Create a `.env` file in the root. Use `configs/env.js` as a guide for the required variables (e.g., `DB_URL`, `ACCESS_TOKEN_SECRET`).
-4.  In your MongoDB database, you **must** create the `Role` documents (e.g., "user", "admin") with their default permissions, as the `register` controller relies on them.
-5.  Run `npm run dev` to start the server with nodemon.
+3.  Add `"type": "module"` to your `package.json` file.
+4.  Create a `.env` file. Use `configs/env.js` as a guide for all required variables (e.g., `DB_URL`, `ACCESS_TOKEN_SECRET`, `DEFAULT_PERMISSIONS`).
+5.  Run `npm run dev` to start the server.

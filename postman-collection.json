@@ -239,6 +239,84 @@
         }
       ],
       "description": "Todo management endpoints (Requires authentication)"
+    },
+    {
+      "name": "Permissions (Admin)",
+      "item": [
+        {
+          "name": "List All User Permissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/permissions/list",
+              "host": ["{{baseUrl}}"],
+              "path": ["permissions", "list"]
+            },
+            "description": "Gets a list of all users and their permission documents. Requires 'superadmin' or 'all' scope."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Individual User's Permissions",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"user\",\n  \"permissions\": [\n    { \"method\": \"POST\", \"path\": \"/todo\", \"isEnabled\": true, \"scope\": \"own\" },\n    { \"method\": \"GET\", \"path\": \"/todo/list\", \"isEnabled\": true, \"scope\": \"own\" },\n    { \"method\": \"GET\", \"path\": \"/todo/:id\", \"isEnabled\": true, \"scope\": \"own\" },\n    { \"method\": \"PATCH\", \"path\": \"/todo/:id\", \"isEnabled\": false, \"scope\": \"own\" },\n    { \"method\": \"DELETE\", \"path\": \"/todo/:id\", \"isEnabled\": false, \"scope\": \"own\" },\n    { \"method\": \"GET\", \"path\": \"/permissions/list\", \"isEnabled\": false, \"scope\": \"all\" },\n    { \"method\": \"PATCH\", \"path\": \"/permissions/user/:id\", \"isEnabled\": false, \"scope\": \"all\" },\n    { \"method\": \"PATCH\", \"path\": \"/permissions/role/:roleName\", \"isEnabled\": false, \"scope\": \"all\" }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/permissions/user/YOUR_USER_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["permissions", "user", "YOUR_USER_ID"]
+            },
+            "description": "Updates the *entire* permission document (role and permissions array) for a single user. Requires 'superadmin' or 'all' scope."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Update Role Permissions",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"DELETE\",\n  \"path\": \"/todo/:id\",\n  \"isEnabled\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/permissions/role/user",
+              "host": ["{{baseUrl}}"],
+              "path": ["permissions", "role", "user"]
+            },
+            "description": "Updates a *single* permission rule for *all* users matching a specific role. Requires 'superadmin' or 'all' scope."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints for managing user permissions. Requires admin/superadmin privileges."
     }
   ],
   "variable": [

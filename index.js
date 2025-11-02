@@ -11,7 +11,7 @@ const app = express();
 app.use(cors(CORS_OPTIONS));
 app.use(json());
 app.use(cookieParser());
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/public/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
 app.use(router);
 
 mongoose

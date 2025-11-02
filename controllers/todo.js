@@ -3,6 +3,7 @@ import path from 'path';
 import { isValidObjectId } from 'mongoose';
 import Todo from '../models/Todo.js';
 import { BASE_URL } from '../configs/env.js';
+import { buildScopeQuery } from '../utils/helper.js';
 
 export const list = async (req, res) => {
   try {
@@ -14,25 +15,32 @@ export const list = async (req, res) => {
     const allowedSortFields = ['createdAt', 'title', 'status'];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
 
-    const query = {
-      user: req.user._id,
-    };
+    const query = buildScopeQuery(req);
 
     if (status && ['pending', 'in-progress', 'completed'].includes(status)) {
       query.status = status;
     }
 
-    const total = await Todo.countDocuments(query);
-    const todos = await Todo.find(query)
+    const queryBuilder = Todo.find(query);
+
+    if (req.user.scope === 'all') {
+      queryBuilder.populate('user', 'name email');
+    }
+
+    queryBuilder
       .skip(skip)
       .limit(limitNumber)
       .sort({ [sortField]: sortOrder });
 
+    const todos = await queryBuilder;
+    const total = await Todo.countDocuments(query);
+    const totalPages = Math.ceil(total / limitNumber);
+
     res.status(200).json({
       success: true,
       count: todos.length,
-      page: pageNumber,
-      totalPages: Math.ceil(total / limitNumber),
+      page: total === 0 ? 0 : pageNumber,
+      totalPages: totalPages,
       total,
       data: todos,
     });
@@ -49,7 +57,14 @@ export const details = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
 
-    const foundTodo = await Todo.findOne({ _id: id, user: req.user._id });
+    const query = buildScopeQuery(req, { _id: id });
+    const queryBuilder = Todo.findOne(query);
+
+    if (req.user.scope === 'all') {
+      queryBuilder.populate('user', 'name email');
+    }
+
+    const foundTodo = await queryBuilder;
 
     if (!foundTodo) {
       return res.status(404).json({ success: false, message: 'Todo not found' });
@@ -71,10 +86,10 @@ export const create = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Title is required' });
     }
 
-    const todoData = { title: title.trim(), description: description?.trim() };
+    const todoData = { user: req.user._id, title: title.trim(), description: description?.trim() };
 
     if (file) {
-      const fileUrl = `${BASE_URL}/uploads/${file.filename}`;
+      const fileUrl = `${BASE_URL}/public/uploads/${file.filename}`;
       todoData.file = {
         url: fileUrl,
         originalName: file.originalname,
@@ -101,7 +116,8 @@ export const update = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
 
-    const todo = await Todo.findOne({ _id: id, user: req.user._id });
+    const query = buildScopeQuery(req, { _id: id });
+    const todo = await Todo.findOne(query);
 
     if (!todo) {
       return res.status(404).json({ success: false, message: 'Todo not found' });
@@ -114,13 +130,13 @@ export const update = async (req, res) => {
     if (file) {
       if (todo.file?.url) {
         const oldFilename = path.basename(todo.file.url);
-        const oldFilePath = path.join(process.cwd(), 'uploads', oldFilename);
+        const oldFilePath = path.join(process.cwd(), 'public/uploads', oldFilename);
         fs.unlink(oldFilePath, (err) => {
           if (err) console.warn('Failed to delete old file:', err);
         });
       }
 
-      const fileUrl = `${BASE_URL}/uploads/${file.filename}`;
+      const fileUrl = `${BASE_URL}/public/uploads/${file.filename}`;
       todo.file = {
         url: fileUrl,
         originalName: file.originalname,
@@ -144,15 +160,14 @@ export const remove = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid Todo ID' });
     }
 
-    const todo = await Todo.findOne({ _id: id, user: req.user._id });
+    const query = buildScopeQuery(req, { _id: id });
+    const todo = await Todo.findOne(query);
 
-    if (!todo) {
-      return res.status(404).json({ success: false, message: 'Todo not found' });
-    }
+    if (!todo) return res.status(404).json({ success: false, message: 'Todo not found' });
 
     if (todo.file?.url) {
       const filename = path.basename(todo.file.url);
-      const filePath = path.join(process.cwd(), 'uploads', filename);
+      const filePath = path.join(process.cwd(), 'public/uploads', filename);
 
       fs.unlink(filePath, (err) => {
         if (err) console.warn('Failed to delete file:', err);

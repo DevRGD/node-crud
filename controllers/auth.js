@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import { REFRESH_TOKEN_SECRET, NODE_ENV } from '../configs/env.js';
+import Permission from '../models/Permission.js';
 import { sendTokenResponse } from '../utils/token.js';
+import { REFRESH_TOKEN_SECRET, NODE_ENV, DEFAULT_PERMISSIONS } from '../configs/env.js';
 
 export const register = async (req, res) => {
   try {
@@ -12,11 +13,17 @@ export const register = async (req, res) => {
     }
 
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'Email already in use' });
-    }
+    if (existingUser) return res.status(400).json({ success: false, message: 'Email already in use' });
 
     const user = await User.create({ name, email, password });
+
+    try {
+      await Permission.create({ user: user._id, role: 'user', permissions: DEFAULT_PERMISSIONS });
+    } catch (permError) {
+      await User.findByIdAndDelete(user._id);
+      console.error('Failed to create permission document for new user:', permError);
+      return res.status(500).json({ success: false, message: 'Server error: Could not set user permissions.' });
+    }
 
     sendTokenResponse(user, 201, res);
   } catch (error) {
